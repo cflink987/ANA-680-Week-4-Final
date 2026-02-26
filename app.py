@@ -6,9 +6,17 @@ from pathlib import Path
 
 import joblib
 import pandas as pd
+import sklearn
 from flask import Flask, jsonify, request
 
 import sklearn.compose._column_transformer as ct
+
+class _RemainderColsList(list):
+    pass
+
+ct._RemainderColsList = _RemainderColsList
+
+print("Runtime versions:", {"sklearn": sklearn.__version__, "joblib": joblib.__version__})
 
 class _RemainderColsList(list):
     pass
