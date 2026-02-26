@@ -7,7 +7,7 @@ from pathlib import Path
 import joblib
 import pandas as pd
 import sklearn
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 
 import sklearn.compose._column_transformer as ct
 
@@ -92,3 +92,39 @@ def predict():
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=True)
+
+    @app.route("/ui", methods=["GET", "POST"])
+    def ui():
+        values = {}
+        result = None
+        error = None
+
+        if request.method == "POST":
+            try:
+                values = dict(request.form)
+
+                payload = {
+                    "age": values.get("age"),
+                    "gender": values.get("gender"),
+                    "daily_gaming_hours": values.get("daily_gaming_hours"),
+                    "weekly_sessions": values.get("weekly_sessions"),
+                    "years_gaming": values.get("years_gaming"),
+                    "competitive_rank": values.get("competitive_rank"),
+                    "online_friends": values.get("online_friends"),
+                    "microtransactions_spending": values.get("microtransactions_spending"),
+                    "screen_time_total": values.get("screen_time_total"),
+                    "sleep_hours": values.get("sleep_hours"),
+                    "stress_level": values.get("stress_level"),
+                    "depression_score": values.get("depression_score"),
+                }
+
+                X = payload_to_df(payload)
+                proba = float(model.predict_proba(X)[0, 1])
+                pred = int(proba >= 0.5)
+
+                result = {"prediction": pred, "probability": proba}
+
+            except Exception as e:
+                error = str(e)
+
+        return render_template("ui.html", values=values, result=result, error=error)
