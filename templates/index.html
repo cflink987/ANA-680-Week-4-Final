@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gaming Addiction Risk Predictor</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 32px; }
+    h1 { margin-bottom: 6px; }
+    .sub { color: #555; margin-top: 0; }
+    .box { border: 1px solid #ddd; padding: 18px; border-radius: 10px; max-width: 980px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; }
+    label { display:block; font-weight: 600; margin-bottom: 6px; }
+    input, select { width: 100%; padding: 10px; border: 1px solid #bbb; border-radius: 6px; }
+    .row { margin-bottom: 12px; }
+    .btn { padding: 10px 16px; border: 1px solid #333; background: #f2f2f2; border-radius: 6px; cursor: pointer; }
+    .meta { margin: 8px 0 18px; color: #666; }
+    .ok { background: #e8fff0; border: 1px solid #8be0aa; padding: 12px; border-radius: 8px; margin-bottom: 14px; }
+    .err { background: #ffecec; border: 1px solid #ff9c9c; padding: 12px; border-radius: 8px; margin-bottom: 14px; }
+    code { background: #f6f6f6; padding: 2px 6px; border-radius: 4px; }
+    @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <h1>Gaming Addiction Risk Predictor</h1>
+  <p class="sub">Enter the 12 feature values and click Predict. (API endpoint: <code>POST /predict</code>)</p>
+
+  <div class="box">
+    <div class="meta">
+      Tip: You can still call the JSON API with <code>POST /predict</code> and JSON body.
+    </div>
+
+    {% if error %}
+      <div class="err"><strong>Error:</strong> {{ error }}</div>
+    {% endif %}
+
+    {% if result %}
+      <div class="ok">
+        <div><strong>Prediction:</strong> {{ result.prediction }} (1 = high_addiction)</div>
+        <div><strong>Probability:</strong> {{ "%.4f"|format(result.probability) }}</div>
+      </div>
+    {% endif %}
+
+    <form method="post" action="/predict">
+      <div class="grid">
+        <div class="row">
+          <label>Age</label>
+          <input name="age" type="number" value="{{ values.get('age','') }}" required>
+        </div>
+
+        <div class="row">
+          <label>Gender</label>
+          {% set g = values.get('gender','') %}
+          <select name="gender" required>
+            <option value="" disabled {% if g=='' %}selected{% endif %}>Select…</option>
+            <option value="Male" {% if g=='Male' %}selected{% endif %}>Male</option>
+            <option value="Female" {% if g=='Female' %}selected{% endif %}>Female</option>
+            <option value="Other" {% if g=='Other' %}selected{% endif %}>Other</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <label>Daily gaming hours</label>
+          <input name="daily_gaming_hours" type="number" step="any" value="{{ values.get('daily_gaming_hours','') }}" required>
+        </div>
+
+        <div class="row">
+          <label>Weekly sessions</label>
+          <input name="weekly_sessions" type="number" step="any" value="{{ values.get('weekly_sessions','') }}" required>
+        </div>
+
+        <div class="row">
+          <label>Years gaming</label>
+          <input name="years_gaming" type="number" step="any" value="{{ values.get('years_gaming','') }}" required>
+        </div>
+
+        <div class="row">
+          <label>Competitive rank</label>
+          <input name="competitive_rank" type="number" step="any" value="{{ values.get('competitive_rank','') }}" required>
+        </div>
+
+        <div class="row">
+          <label>Online friends</label>
+          <input name="online_friends" type="number" step="any" value="{{ values.get('online_friends','') }}" required>
+        </div>
+
+        <div class="row">
+          <label>Microtransactions spending</label>
+          <input name="microtransactions_spending" type="number" step="any" value="{{ values.get('microtransactions_spending','') }}" required>
+        </div>
+
+        <div class="row">
+          <label>Screen time total</label>
+          <input name="screen_time_total" type="number" step="any" value="{{ values.get('screen_time_total','') }}" required>
+        </div>
+
+        <div class="row">
+          <label>Sleep hours</label>
+          <input name="sleep_hours" type="number" step="any" value="{{ values.get('sleep_hours','') }}" required>
+        </div>
+
+        <div class="row">
+          <label>Stress level</label>
+          <input name="stress_level" type="number" step="any" value="{{ values.get('stress_level','') }}" required>
+        </div>
+
+        <div class="row">
+          <label>Depression score</label>
+          <input name="depression_score" type="number" step="any" value="{{ values.get('depression_score','') }}" required>
+        </div>
+      </div>
+
+      <div style="margin-top: 18px;">
+        <button class="btn" type="submit">Predict</button>
+      </div>
+    </form>
+  </div>
+</body>
+</html>
