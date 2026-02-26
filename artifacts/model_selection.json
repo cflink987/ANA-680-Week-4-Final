@@ -1,0 +1,13 @@
+{
+  "selected_model": "LogisticRegression",
+  "val_scores": {
+    "LogisticRegression": {
+      "roc_auc": 0.9638508343179147,
+      "avg_precision": 0.8914699893512258
+    },
+    "RandomForest": {
+      "roc_auc": 0.961234124688045,
+      "avg_precision": 0.8831669210648182
+    }
+  }
+}

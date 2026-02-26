@@ -1,0 +1,21 @@
+﻿@'
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data (too large for GitHub)
+*.csv
+'@ | Set-Content -Encoding UTF8 .gitignore
