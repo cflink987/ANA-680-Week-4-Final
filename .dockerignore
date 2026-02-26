@@ -1,0 +1,10 @@
+.venv/
+.idea/
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+
+*.csv
+*.ipynb
+*.pdf
+*.docx
