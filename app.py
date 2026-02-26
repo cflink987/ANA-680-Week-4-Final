@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import warnings
 from pathlib import Path
 
@@ -27,11 +28,14 @@ ARTIFACTS_DIR = APP_DIR / "artifacts"
 
 MODEL_PATH = ARTIFACTS_DIR / "deploy_model.pkl"
 FEATURES_PATH = ARTIFACTS_DIR / "deploy_features.json"
+BOUNDS_PATH = ARTIFACTS_DIR / "input_bounds.json"
 
 if not MODEL_PATH.exists():
     raise FileNotFoundError(f"Missing model file: {MODEL_PATH}")
 if not FEATURES_PATH.exists():
     raise FileNotFoundError(f"Missing features file: {FEATURES_PATH}")
+if not BOUNDS_PATH.exists():
+    raise FileNotFoundError(f"Missing bounds file: {BOUNDS_PATH}")
 
 app = Flask(__name__)
 
@@ -42,38 +46,92 @@ model = joblib.load(MODEL_PATH)
 with open(FEATURES_PATH, "r", encoding="utf-8") as f:
     DEPLOY_FEATURES: list[str] = json.load(f)
 
+with open(BOUNDS_PATH, "r", encoding="utf-8") as f:
+    INPUT_BOUNDS = json.load(f)
+
+INPUT_POLICY = os.getenv("INPUT_POLICY", INPUT_BOUNDS.get("policy_default", "clip")).lower()
+
 NUMERIC_FEATURES = [c for c in DEPLOY_FEATURES if c != "gender"]
+
+LABELS = {
+    "age": "age",
+    "gender": "gender",
+    "daily_gaming_hours": "daily gaming hours",
+    "weekly_sessions": "weekly sessions",
+    "years_gaming": "years gaming",
+    "competitive_rank": "competitive rank",
+    "online_friends": "online friends",
+    "microtransactions_spending": "microtransactions spending",
+    "screen_time_total": "screen time total",
+    "sleep_hours": "sleep hours",
+    "stress_level": "stress level",
+    "depression_score": "depression score",
+}
+
+
+def validate_and_normalize(payload: dict) -> tuple[dict, dict]:
+    """
+    Returns (cleaned_payload, clipped_fields)
+    clipped_fields: {feature: {"from": original, "to": clipped}}
+    """
+    feat_bounds = INPUT_BOUNDS["features"]
+    allowed_gender = set(feat_bounds["gender"]["allowed"])
+
+    cleaned: dict = {}
+    clipped: dict = {}
+
+    for f in DEPLOY_FEATURES:
+        if f not in payload:
+            raise ValueError(f"Missing required field: {f}")
+
+        raw = payload[f]
+
+        if f == "gender":
+            g = str(raw).strip()
+            if g not in allowed_gender:
+                raise ValueError(f"gender must be one of {sorted(allowed_gender)}")
+            cleaned[f] = g
+            continue
+
+        x = float(raw)
+        lo = float(feat_bounds[f]["min"])
+        hi = float(feat_bounds[f]["max"])
+
+        if x < lo or x > hi:
+            if INPUT_POLICY == "reject":
+                raise ValueError(f"{f} out of range [{lo}, {hi}] (got {x})")
+            x2 = min(max(x, lo), hi)
+            clipped[f] = {"from": float(x), "to": float(x2)}
+            x = x2
+
+        cleaned[f] = x
+
+    return cleaned, clipped
 
 
 def payload_to_df(payload: dict) -> pd.DataFrame:
-    missing = [c for c in DEPLOY_FEATURES if c not in payload]
-    if missing:
-        raise ValueError(f"Missing required fields: {missing}")
-
-    row = {k: payload[k] for k in DEPLOY_FEATURES}
-
-    if isinstance(row.get("gender"), str):
-        row["gender"] = row["gender"].strip()
-
-    for c in NUMERIC_FEATURES:
-        row[c] = pd.to_numeric(row[c], errors="raise")
-
-    return pd.DataFrame([row], columns=DEPLOY_FEATURES)
+    # assumes payload already validated & normalized
+    return pd.DataFrame([payload], columns=DEPLOY_FEATURES)
 
 
-def _render_form(values=None, result=None, error=None):
+def render_home(values=None, result=None, error=None, clipped_fields=None):
     return render_template(
         "index.html",
         values=values or {},
         result=result,
         error=error,
+        clipped_fields=clipped_fields or {},
+        bounds=INPUT_BOUNDS,
+        policy=INPUT_POLICY,
+        labels=LABELS,
         required_features=DEPLOY_FEATURES,
     )
 
 
 @app.get("/")
-def index():
-    return _render_form()
+def home():
+    # This is what "Open app" shows
+    return render_home()
 
 
 @app.get("/health")
@@ -87,14 +145,16 @@ def info():
         message="Gaming Addiction Risk API",
         endpoints={"health": "/health", "predict": "/predict", "info": "/info"},
         required_features=DEPLOY_FEATURES,
+        input_policy=INPUT_POLICY,
+        bounds_type=INPUT_BOUNDS.get("bounds_type"),
     )
 
 
 @app.post("/predict")
 def predict():
     """
-    - If JSON is sent -> return JSON (API)
-    - If HTML form is submitted -> return HTML page with result (UI)
+    - If JSON sent -> JSON response
+    - If HTML form -> returns HTML page with result
     """
     try:
         if request.is_json:
@@ -102,38 +162,44 @@ def predict():
             if not isinstance(payload, dict):
                 return jsonify(error="JSON body must be an object with feature keys."), 400
 
-            X = payload_to_df(payload)
+            cleaned, clipped_fields = validate_and_normalize(payload)
+            X = payload_to_df(cleaned)
+
             proba = float(model.predict_proba(X)[0, 1])
             pred = int(proba >= 0.5)
-            return jsonify(prediction=pred, probability=proba)
 
-        values = dict(request.form)
+            return jsonify(
+                prediction=pred,
+                probability=proba,
+                policy=INPUT_POLICY,
+                bounds_type=INPUT_BOUNDS.get("bounds_type"),
+                clipped_fields=clipped_fields,
+            )
 
-        payload = {
-            "age": values.get("age"),
-            "gender": values.get("gender"),
-            "daily_gaming_hours": values.get("daily_gaming_hours"),
-            "weekly_sessions": values.get("weekly_sessions"),
-            "years_gaming": values.get("years_gaming"),
-            "competitive_rank": values.get("competitive_rank"),
-            "online_friends": values.get("online_friends"),
-            "microtransactions_spending": values.get("microtransactions_spending"),
-            "screen_time_total": values.get("screen_time_total"),
-            "sleep_hours": values.get("sleep_hours"),
-            "stress_level": values.get("stress_level"),
-            "depression_score": values.get("depression_score"),
-        }
+        form_vals = dict(request.form)
 
-        X = payload_to_df(payload)
+        payload = {f: form_vals.get(f) for f in DEPLOY_FEATURES}
+        cleaned, clipped_fields = validate_and_normalize(payload)
+
+        X = payload_to_df(cleaned)
         proba = float(model.predict_proba(X)[0, 1])
         pred = int(proba >= 0.5)
 
+        values = {k: str(cleaned[k]) for k in DEPLOY_FEATURES}
         result = {"prediction": pred, "probability": proba}
-        return _render_form(values=values, result=result)
+
+        return render_home(values=values, result=result, clipped_fields=clipped_fields)
 
     except ValueError as e:
-        return _render_form(values=dict(request.form), error=str(e)), 400
+        if request.is_json:
+            return jsonify(error=str(e)), 400
+        return render_home(values=dict(request.form), error=str(e)), 400
+
     except Exception as e:
         if request.is_json:
             return jsonify(error=f"{type(e).__name__}: {e}"), 500
-        return _render_form(values=dict(request.form), error=f"{type(e).__name__}: {e}"), 500
+        return render_home(values=dict(request.form), error=f"{type(e).__name__}: {e}"), 500
+
+
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=5000, debug=True)
