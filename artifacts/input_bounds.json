@@ -1,0 +1,58 @@
+{
+  "policy_default": "clip",
+  "bounds_type": "p01_p99",
+  "computed_from": "in_memory_df:(200000, 40)",
+  "features": {
+    "age": {
+      "min": 13.0,
+      "max": 59.0
+    },
+    "daily_gaming_hours": {
+      "min": 0.3,
+      "max": 13.34
+    },
+    "weekly_sessions": {
+      "min": 1.0,
+      "max": 39.0
+    },
+    "years_gaming": {
+      "min": 0.0,
+      "max": 24.0
+    },
+    "competitive_rank": {
+      "min": 0.9900000000000091,
+      "max": 99.0
+    },
+    "online_friends": {
+      "min": 5.0,
+      "max": 495.0
+    },
+    "microtransactions_spending": {
+      "min": 4.91,
+      "max": 2296.581100000001
+    },
+    "screen_time_total": {
+      "min": 1.66,
+      "max": 20.030100000000093
+    },
+    "sleep_hours": {
+      "min": 3.51,
+      "max": 10.5
+    },
+    "stress_level": {
+      "min": 1.0,
+      "max": 10.0
+    },
+    "depression_score": {
+      "min": 0.0,
+      "max": 10.0
+    },
+    "gender": {
+      "allowed": [
+        "Female",
+        "Male",
+        "Other"
+      ]
+    }
+  }
+}
