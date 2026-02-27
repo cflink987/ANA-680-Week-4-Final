@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir gunicorn
 
 COPY app.py ./
+COPY templates ./templates
 COPY artifacts ./artifacts
 
 EXPOSE 5000
