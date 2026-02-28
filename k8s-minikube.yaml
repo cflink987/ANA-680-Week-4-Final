@@ -16,25 +16,28 @@ spec:
     spec:
       containers:
         - name: ana680-final
-          image: ana680-final:1.0
-          imagePullPolicy: Never
+          image: cflink987/ana-680-final:1.1
+          imagePullPolicy: IfNotPresent
           env:
             - name: PORT
               value: "5000"
           ports:
             - containerPort: 5000
+
           readinessProbe:
             httpGet:
-              path: /
+              path: /health
               port: 5000
             initialDelaySeconds: 5
             periodSeconds: 10
+
           livenessProbe:
             httpGet:
-              path: /
+              path: /health
               port: 5000
             initialDelaySeconds: 15
             periodSeconds: 20
+
 ---
 apiVersion: v1
 kind: Service
